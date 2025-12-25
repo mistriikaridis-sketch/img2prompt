@@ -1,4 +1,179 @@
-async function runQwen() {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Picture to Prompt | Zen</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink-black: #1a1a1a;
+            --paper-white: #fcfcfc;
+            --accent-red: #cc3300;
+            --grid-color: #e5e5e5;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--paper-white); 
+            color: var(--ink-black);
+            /* Architectural Grid Pattern */
+            background-image: radial-gradient(var(--grid-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .serif { font-family: 'Playfair Display', serif; }
+
+        /* Minimalist Card */
+        .zen-card {
+            background: #ffffff;
+            border: 1px solid #eeeeee;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        /* Dashed Upload Area */
+        .upload-dashed { 
+            border: 1px dashed #d1d5db; 
+            transition: all 0.3s ease; 
+            background: #fafafa;
+        }
+        .upload-dashed:hover { 
+            border-color: var(--ink-black); 
+            background: #ffffff; 
+        }
+
+        /* Typography Utilities */
+        .tracking-wide-xl { letter-spacing: 0.2em; }
+        
+        /* Hide Scrollbar */
+        textarea::-webkit-scrollbar { width: 0; background: transparent; }
+
+        /* Loading Animation */
+        .loading-line {
+            width: 40px;
+            height: 2px;
+            background-color: var(--ink-black);
+            animation: line-expand 1.5s infinite ease-in-out;
+        }
+        @keyframes line-expand {
+            0% { width: 0; opacity: 0; }
+            50% { width: 40px; opacity: 1; }
+            100% { width: 0; opacity: 0; margin-left: 40px; }
+        }
+        
+        .history-item:hover {
+            border-color: #999;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-24 px-6">
+
+    <div class="w-full max-w-5xl mb-20 text-center">
+        <div class="mb-6">
+            <span class="text-[10px] uppercase font-bold tracking-wide-xl text-gray-400 border-b border-gray-200 pb-2">AI Visual Interpretation</span>
+        </div>
+        
+        <h1 class="text-5xl md:text-6xl font-medium serif tracking-wider text-black flex items-center justify-center gap-3">
+            Picture to Prompt<span class="text-red-600 text-xl align-top self-start mt-2">●</span>
+        </h1>
+
+        <p class="mt-6 text-gray-500 font-light text-sm tracking-wide max-w-md mx-auto italic serif">
+            "Transforming visual aesthetics into poetic prompts."
+        </p>
+    </div>
+
+    <div class="w-full max-w-6xl grid md:grid-cols-2 gap-12 items-stretch">
+        
+        <div class="zen-card p-4 h-full relative group">
+            <div onclick="document.getElementById('file-input').click()" class="upload-dashed h-full min-h-[400px] flex flex-col items-center justify-center cursor-pointer relative overflow-hidden">
+                <input type="file" id="file-input" class="hidden" accept="image/*" onchange="handleFile(event)">
+                
+                <div id="placeholder" class="text-center p-8 transition-opacity duration-300 space-y-5">
+                    <div class="text-5xl font-light text-gray-300 group-hover:text-black transition duration-500">+</div>
+                    <div>
+                        <p class="font-medium text-black tracking-widest text-xs uppercase">Upload Image</p>
+                        <p class="text-[10px] text-gray-400 mt-2 font-mono">JPG / PNG / WEBP</p>
+                    </div>
+                </div>
+                
+                <img id="preview" class="hidden w-full h-full object-contain p-6" />
+                
+                <button id="close-preview" onclick="removeImage(event)" class="hidden absolute top-4 right-4 text-gray-400 hover:text-red-600 transition z-30 font-mono text-xl">
+                    ×
+                </button>
+
+                <div id="loading" class="hidden absolute inset-0 bg-white/95 flex flex-col items-center justify-center z-20">
+                    <div class="loading-line"></div>
+                    <span class="mt-4 text-[10px] font-bold text-gray-800 tracking-widest uppercase">Analyzing...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="zen-card p-8 h-full relative flex flex-col">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Prompt Result</span>
+                <button id="copy-btn" onclick="copyText()" class="text-[10px] font-bold text-black hover:text-red-600 transition tracking-widest uppercase">
+                    Copy Text
+                </button>
+            </div>
+            
+            <textarea id="result" 
+                class="w-full flex-grow text-sm font-mono text-gray-700 leading-8 resize-none outline-none bg-transparent placeholder-gray-200"
+                placeholder="// The AI generated prompt will appear here quietly..." spellcheck="false"></textarea>
+        </div>
+    </div>
+
+    <div class="w-full max-w-6xl mt-24 border-t border-gray-200 pt-10">
+        <div class="flex items-center justify-between mb-8">
+            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Archive</h2>
+            <button onclick="clearHistory()" class="text-[10px] text-gray-400 hover:text-red-600 transition uppercase">Clear All</button>
+        </div>
+        <div id="history-list" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // Vercel Backend Logic
+        // ==========================================
+        let currentCompressedBase64 = null;
+        const currentStyle = 'general'; 
+
+        window.onload = renderHistory;
+
+        async function handleFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const previewUrl = URL.createObjectURL(file);
+            const previewEl = document.getElementById('preview');
+            const closeBtn = document.getElementById('close-preview');
+            
+            document.getElementById('placeholder').classList.add('hidden');
+            previewEl.src = previewUrl;
+            previewEl.classList.remove('hidden');
+            closeBtn.classList.remove('hidden');
+
+            try {
+                currentCompressedBase64 = await compressImage(file);
+                runQwen(); 
+            } catch (err) { alert("Error: " + err.message); }
+        }
+
+        function removeImage(e) {
+            e.stopPropagation();
+            document.getElementById('file-input').value = '';
+            document.getElementById('placeholder').classList.remove('hidden');
+            document.getElementById('preview').classList.add('hidden');
+            document.getElementById('close-preview').classList.add('hidden');
+            document.getElementById('result').value = '';
+            currentCompressedBase64 = null;
+        }
+
+        async function runQwen() {
             const loading = document.getElementById('loading');
             const resultEl = document.getElementById('result');
             
@@ -15,14 +190,6 @@ async function runQwen() {
                     })
                 });
 
-                // 🔍 关键修改：先判断响应是不是 OK
-                if (!response.ok) {
-                    // 如果报错，先尝试读文本，看看服务器说了啥
-                    const errorText = await response.text(); 
-                    throw new Error(`Server Error (${response.status}): ${errorText.substring(0, 100)}...`);
-                }
-
-                // 只有确定是 OK 的，才去解 JSON
                 const data = await response.json();
                 loading.classList.add('hidden');
 
@@ -33,12 +200,112 @@ async function runQwen() {
                     typeWriter(text);
                     saveHistory(text);
                 } else {
-                    throw new Error("API returned empty content.");
+                    throw new Error("No content returned from AI.");
                 }
 
             } catch (error) {
                 loading.classList.add('hidden');
-                // 把真实的错误信息显示在框里
-                resultEl.value = `❌ Connection Error:\n${error.message}\n\n👉 Tip: Check your Vercel Environment Variables (ALIYUN_API_KEY).`;
+                resultEl.value = `Connection Error: ${error.message}`;
             }
         }
+
+        function compressImage(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        let width = img.width;
+                        let height = img.height;
+                        const maxSize = 1024;
+                        if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } 
+                        else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.8));
+                    };
+                    img.onerror = reject;
+                };
+                reader.onerror = reject;
+            });
+        }
+
+        function typeWriter(text) {
+            const el = document.getElementById('result');
+            let i = 0;
+            function type() {
+                if (i < text.length) {
+                    el.value += text.charAt(i);
+                    el.scrollTop = el.scrollHeight;
+                    i++;
+                    setTimeout(type, 5);
+                }
+            }
+            type();
+        }
+
+        function copyText() {
+            const el = document.getElementById('result');
+            if(!el.value) return;
+            el.select();
+            document.execCommand('copy');
+            const btn = document.getElementById('copy-btn');
+            const originalText = btn.innerText;
+            btn.innerText = "COPIED";
+            btn.classList.add('text-red-600');
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.classList.remove('text-red-600');
+            }, 2000);
+        }
+
+        function saveHistory(prompt) {
+            const history = JSON.parse(localStorage.getItem('picto_history') || '[]');
+            const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+            history.unshift({ prompt: prompt, date: dateStr });
+            if (history.length > 3) history.pop();
+            localStorage.setItem('picto_history', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const listEl = document.getElementById('history-list');
+            const history = JSON.parse(localStorage.getItem('picto_history') || '[]');
+            
+            listEl.innerHTML = history.map((item, index) => `
+                <div class="history-item bg-white p-6 border border-gray-100 hover:border-gray-400 transition cursor-pointer group" onclick="restorePrompt('${index}')">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-[10px] text-gray-400 font-mono uppercase tracking-wider">${item.date}</span>
+                        <span class="text-[10px] text-black opacity-0 group-hover:opacity-100 transition tracking-widest uppercase">Restore</span>
+                    </div>
+                    <p class="text-xs text-gray-500 line-clamp-3 font-mono leading-relaxed group-hover:text-black transition">${item.prompt}</p>
+                </div>
+            `).join('');
+            
+            if(history.length === 0) {
+                 listEl.innerHTML = `<div class="col-span-3 text-center text-gray-300 text-xs py-10 font-light tracking-wide">NO ARCHIVED PROMPTS YET</div>`;
+            }
+        }
+
+        function restorePrompt(index) {
+            const history = JSON.parse(localStorage.getItem('picto_history') || '[]');
+            if (history[index]) {
+                document.getElementById('result').value = history[index].prompt;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        function clearHistory() {
+            if(confirm('Delete all history?')) {
+                localStorage.removeItem('picto_history');
+                renderHistory();
+            }
+        }
+    </script>
+</body>
+</html>

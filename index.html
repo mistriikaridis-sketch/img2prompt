@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PictoPrompt | Zen</title>
+    <title>Picture to Prompt | Zen</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <style>
@@ -18,7 +18,7 @@
             font-family: 'Inter', sans-serif; 
             background-color: var(--paper-white); 
             color: var(--ink-black);
-            /* Architectural Grid Pattern (Crosshairs) */
+            /* Architectural Grid Pattern */
             background-image: radial-gradient(var(--grid-color) 1px, transparent 1px);
             background-size: 40px 40px;
             -webkit-font-smoothing: antialiased;
@@ -45,23 +45,13 @@
             background: #ffffff; 
         }
 
-        /* Red Dot Accent */
-        .red-dot {
-            width: 8px;
-            height: 8px;
-            background-color: var(--accent-red);
-            border-radius: 50%;
-            display: inline-block;
-            margin-bottom: 2px;
-        }
-
         /* Typography Utilities */
         .tracking-wide-xl { letter-spacing: 0.2em; }
         
         /* Hide Scrollbar */
         textarea::-webkit-scrollbar { width: 0; background: transparent; }
 
-        /* Loading Animation: Minimal Pulse */
+        /* Loading Animation */
         .loading-line {
             width: 40px;
             height: 2px;
@@ -79,15 +69,17 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center py-20 px-6">
+<body class="min-h-screen flex flex-col items-center py-24 px-6">
 
-    <div class="w-full max-w-5xl mb-16 text-center">
-        <div class="mb-4">
+    <div class="w-full max-w-5xl mb-20 text-center">
+        <div class="mb-6">
             <span class="text-[10px] uppercase font-bold tracking-wide-xl text-gray-400 border-b border-gray-200 pb-2">AI Visual Interpretation</span>
         </div>
-        <h1 class="text-6xl md:text-7xl font-medium serif tracking-tight text-black flex items-center justify-center gap-2">
-            PictoPrompt<span class="text-red-600 text-xl align-top self-start mt-2">●</span>
+        
+        <h1 class="text-5xl md:text-6xl font-medium serif tracking-wider text-black flex items-center justify-center gap-3">
+            Picture to Prompt<span class="text-red-600 text-xl align-top self-start mt-2">●</span>
         </h1>
+
         <p class="mt-6 text-gray-500 font-light text-sm tracking-wide max-w-md mx-auto italic serif">
             "Transforming visual aesthetics into poetic prompts."
         </p>
@@ -99,8 +91,8 @@
             <div onclick="document.getElementById('file-input').click()" class="upload-dashed h-full min-h-[400px] flex flex-col items-center justify-center cursor-pointer relative overflow-hidden">
                 <input type="file" id="file-input" class="hidden" accept="image/*" onchange="handleFile(event)">
                 
-                <div id="placeholder" class="text-center p-8 transition-opacity duration-300 space-y-4">
-                    <div class="text-4xl font-light text-gray-300 group-hover:text-black transition duration-500">+</div>
+                <div id="placeholder" class="text-center p-8 transition-opacity duration-300 space-y-5">
+                    <div class="text-5xl font-light text-gray-300 group-hover:text-black transition duration-500">+</div>
                     <div>
                         <p class="font-medium text-black tracking-widest text-xs uppercase">Upload Image</p>
                         <p class="text-[10px] text-gray-400 mt-2 font-mono">JPG / PNG / WEBP</p>
@@ -115,7 +107,7 @@
 
                 <div id="loading" class="hidden absolute inset-0 bg-white/95 flex flex-col items-center justify-center z-20">
                     <div class="loading-line"></div>
-                    <span class="mt-4 text-[10px] font-bold text-gray-800 tracking-widest uppercase">Analyzing Composition...</span>
+                    <span class="mt-4 text-[10px] font-bold text-gray-800 tracking-widest uppercase">Analyzing...</span>
                 </div>
             </div>
         </div>
@@ -134,7 +126,7 @@
         </div>
     </div>
 
-    <div class="w-full max-w-6xl mt-20 border-t border-gray-200 pt-10">
+    <div class="w-full max-w-6xl mt-24 border-t border-gray-200 pt-10">
         <div class="flex items-center justify-between mb-8">
             <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Archive</h2>
             <button onclick="clearHistory()" class="text-[10px] text-gray-400 hover:text-red-600 transition uppercase">Clear All</button>
@@ -148,7 +140,6 @@
         // Vercel Backend Logic
         // ==========================================
         let currentCompressedBase64 = null;
-        // Default to 'general' style for maximum compatibility
         const currentStyle = 'general'; 
 
         window.onload = renderHistory;
@@ -157,7 +148,6 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            // Preview Logic
             const previewUrl = URL.createObjectURL(file);
             const previewEl = document.getElementById('preview');
             const closeBtn = document.getElementById('close-preview');
@@ -191,7 +181,6 @@
             loading.classList.remove('hidden');
 
             try {
-                // Request to your Vercel Backend
                 const response = await fetch('/api/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -277,7 +266,6 @@
 
         function saveHistory(prompt) {
             const history = JSON.parse(localStorage.getItem('picto_history') || '[]');
-            // Using simplified English date format
             const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
             history.unshift({ prompt: prompt, date: dateStr });
             if (history.length > 3) history.pop();

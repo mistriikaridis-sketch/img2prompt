@@ -1,44 +1,47 @@
-// 使用 Node.js 运行时，更稳定
+// ✅ 强制使用 Edge Runtime，绕过 Node.js 的 10秒超时限制
 export const config = {
-  runtime: 'nodejs',
+  runtime: 'edge', 
 };
 
-export default async function handler(req, res) {
-  // 1. 打印请求方法，确保是 POST
-  console.log(`[API]收到请求: ${req.method}`);
-
+export default async function handler(req) {
+  // Edge 模式下，req 是标准的 Web Request 对象
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
+    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
-
-  // 2. 检查 API Key 环境变量
-  const apiKey = process.env.ALIYUN_API_KEY;
-  if (!apiKey) {
-    console.error("❌ [API]严重错误: Vercel 环境变量中未找到 ALIYUN_API_KEY");
-    // 返回一个明确的 JSON 错误，而不是让函数崩溃
-    return res.status(500).json({ error: 'Server Configuration Error: API Key missing in Vercel Settings.' });
-  }
-  console.log("[API]成功读取到 API Key (已脱敏)");
 
   try {
-    // 3. 解析请求体
-    const { imageBase64, style } = req.body;
-    if (!imageBase64) {
-      console.error("❌ [API]错误: 请求体中缺少 imageBase64 数据");
-      return res.status(400).json({ error: 'No image data provided in request body.' });
+    // 1. 读取 Vercel 环境变量
+    // 注意：Edge 模式下 process.env 可能拿不到，要用 process.env 或者 import.meta.env，但 Vercel 自动注入通常支持 process.env
+    const apiKey = process.env.ALIYUN_API_KEY;
+    
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'Server Config Error: API Key is missing.' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
-    console.log(`[API]收到图片数据，长度: ${imageBase64.length}, 风格: ${style}`);
 
-    // 4. 构建提示词
+    // 2. 解析请求体
+    const { imageBase64, style } = await req.json();
+
+    if (!imageBase64) {
+      return new Response(JSON.stringify({ error: 'No image data provided.' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 3. 构建 Prompt
     let systemPrompt = "详细分析这张图片，生成一段高质量的英文 Prompt，用于 Midjourney 绘画。包含：主体描述、环境、光影、艺术风格、镜头语言。直接输出 Prompt 纯文本，不要任何中文解释。";
     if (style === 'photography') systemPrompt += " 重点：相机型号、胶片质感、真实光影。";
     if (style === 'anime') systemPrompt += " 重点：二次元风格、线条描边、赛璐璐上色。";
     if (style === '3d') systemPrompt += " 重点：3D渲染引擎(UE5)、材质、体积光。";
 
-    console.log("[API]开始向阿里云发送请求...");
-    const aliyunUrl = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
-    
-    const response = await fetch(aliyunUrl, {
+    // 4. 请求阿里云 (Qwen-VL)
+    const aliyunResponse = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -59,24 +62,30 @@ export default async function handler(req, res) {
       })
     });
 
-    // 5. 检查阿里云的响应状态
-    console.log(`[API]阿里云响应状态码: ${response.status}`);
-    
-    if (!response.ok) {
-      // 如果阿里云返回错误，读取原始文本
-      const errorText = await response.text();
-      console.error(`❌ [API]阿里云 API 报错: ${errorText}`);
-      return res.status(response.status).json({ error: `Aliyun API Error: ${errorText}` });
+    // 5. 检查阿里云响应
+    if (!aliyunResponse.ok) {
+      const errorText = await aliyunResponse.text();
+      return new Response(JSON.stringify({ error: `Aliyun Error: ${errorText}` }), {
+        status: aliyunResponse.status,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
-    // 6. 成功获取数据
-    const data = await response.json();
-    console.log("[API]成功从阿里云获取 JSON 数据，准备返回前端");
-    return res.status(200).json(data);
+    const data = await aliyunResponse.json();
+
+    // 6. 成功返回
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store' 
+      }
+    });
 
   } catch (error) {
-    // 7. 捕获所有其他未知错误
-    console.error("❌ [API]服务器内部发生未捕获异常:", error);
-    return res.status(500).json({ error: `Internal Server Error: ${error.message}` });
+    return new Response(JSON.stringify({ error: `Internal Error: ${error.message}` }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }

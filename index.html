@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PictoPrompt Pro | Minimalist</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f9fafb; color: #1f2937; }
+        
+        /* 滚动条隐藏但保留功能 */
+        textarea::-webkit-scrollbar { width: 0px; background: transparent; }
+        
+        .upload-dashed { border: 2px dashed #e5e7eb; transition: 0.3s; background: #fff; }
+        .upload-dashed:hover { border-color: #4f46e5; background: #eef2ff; }
+        
+        .history-item { transition: all 0.2s; }
+        .history-item:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        
+        /* 删除按钮样式 */
+        .close-btn {
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+        }
+        .close-btn:hover { transform: scale(1.1); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-12 px-4 bg-gray-50">
+
+    <div class="w-full max-w-4xl mb-10 text-center">
+        <h1 class="text-5xl font-extrabold text-gray-900 tracking-tight mb-3">
+            Picto<span class="text-indigo-600">Prompt</span> Pro.
+        </h1>
+        <p class="text-gray-400 font-medium tracking-wide text-sm">AI Image to Prompt Generator.</p>
+    </div>
+
+    <div class="w-full max-w-4xl grid md:grid-cols-2 gap-6 items-stretch">
+        
+        <div class="bg-white p-2 rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col h-full relative z-10">
+            <div onclick="document.getElementById('file-input').click()" class="upload-dashed rounded-xl flex-grow min-h-[320px] flex flex-col items-center justify-center cursor-pointer relative overflow-hidden group">
+                <input type="file" id="file-input" class="hidden" accept="image/*" onchange="handleFile(event)">
+                
+                <div id="placeholder" class="text-center p-6 transition-opacity duration-300">
+                    <div class="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition duration-300">
+                        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    </div>
+                    <p class="font-bold text-gray-700 text-lg">Click to Upload</p>
+                    <p class="text-xs text-gray-400 mt-2">JPG / PNG / WEBP</p>
+                </div>
+                
+                <img id="preview" class="hidden w-full h-full object-contain bg-gray-50/50" />
+                
+                <button id="close-preview" onclick="removeImage(event)" class="hidden close-btn absolute top-3 right-3 bg-white/80 hover:bg-red-500 hover:text-white text-gray-500 rounded-full w-8 h-8 flex items-center justify-center shadow-sm border border-gray-100 z-30">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+
+                <div id="loading" class="hidden absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center z-20">
+                    <div class="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+                    <span class="text-xs font-bold text-indigo-600 animate-pulse tracking-widest">ANALYZING...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-1 rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col h-full relative group z-0">
+            <div class="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition duration-300">
+                <button id="copy-btn" onclick="copyText()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-lg shadow-indigo-200 transition-all transform active:scale-95 flex items-center gap-2">
+                    <span>Copy</span>
+                </button>
+            </div>
+            
+            <textarea id="result" 
+                class="w-full h-full p-8 text-sm font-mono text-gray-700 leading-relaxed resize-none outline-none rounded-xl bg-transparent focus:bg-indigo-50/30 transition placeholder-gray-300"
+                placeholder="PROMPT WILL APPEAR HERE..." spellcheck="false"></textarea>
+        </div>
+    </div>
+
+    <div class="w-full max-w-4xl mt-12">
+        <div class="flex items-center justify-between mb-4 px-1">
+            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Recent History</h2>
+            <button onclick="clearHistory()" class="text-xs text-gray-400 hover:text-red-500 transition">Clear All</button>
+        </div>
+        <div id="history-list" class="grid grid-cols-1 gap-3">
+            </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 🟢 API Key (阿里云 Qwen)
+        // ==========================================
+        const API_KEY = 'sk-d00322e83fdb4df391f73e593dc146a7'; 
+        // ==========================================
+
+        let currentCompressedBase64 = null;
+
+        window.onload = renderHistory;
+
+        // 🟢 文件处理 + 预览 + 压缩
+        async function handleFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // 显示预览
+            const previewUrl = URL.createObjectURL(file);
+            const previewEl = document.getElementById('preview');
+            const closeBtn = document.getElementById('close-preview');
+            
+            document.getElementById('placeholder').classList.add('hidden');
+            previewEl.src = previewUrl;
+            previewEl.classList.remove('hidden');
+            closeBtn.classList.remove('hidden'); // 显示删除按钮
+
+            try {
+                currentCompressedBase64 = await compressImage(file);
+                runQwen(); // 自动开始
+            } catch (err) { alert("Error: " + err.message); }
+        }
+
+        // 🟢 删除图片功能
+        function removeImage(e) {
+            e.stopPropagation(); // 防止触发上传点击
+            
+            // 重置 input
+            document.getElementById('file-input').value = '';
+            
+            // UI 重置
+            document.getElementById('placeholder').classList.remove('hidden');
+            document.getElementById('preview').classList.add('hidden');
+            document.getElementById('close-preview').classList.add('hidden');
+            document.getElementById('result').value = '';
+            
+            // 数据清理
+            currentCompressedBase64 = null;
+        }
+
+        // 🟢 图片压缩逻辑
+        function compressImage(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        let width = img.width;
+                        let height = img.height;
+                        const maxSize = 1024;
+                        if (width > height) {
+                            if (width > maxSize) { height *= maxSize / width; width = maxSize; }
+                        } else {
+                            if (height > maxSize) { width *= maxSize / height; height = maxSize; }
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.8));
+                    };
+                    img.onerror = (err) => reject(err);
+                };
+                reader.onerror = (err) => reject(err);
+            });
+        }
+
+        // 🟢 API 调用逻辑 (Qwen-VL)
+        async function runQwen() {
+            const loading = document.getElementById('loading');
+            const resultEl = document.getElementById('result');
+            
+            resultEl.value = '';
+            loading.classList.remove('hidden');
+
+            try {
+                // 万能提示词
+                const systemPrompt = "详细分析这张图片，生成一段高质量的英文 Prompt，用于 Midjourney 绘画。包含：主体描述、环境、光影、艺术风格、镜头语言、渲染引擎。直接输出 Prompt 纯文本，不要任何中文解释，不要Markdown格式。";
+
+                const proxy = 'https://corsproxy.io/?';
+                const targetUrl = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
+                const url = proxy + encodeURIComponent(targetUrl);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: "qwen-vl-max",
+                        messages: [
+                            {
+                                role: "user",
+                                content: [
+                                    { type: "text", text: systemPrompt },
+                                    { type: "image_url", image_url: { url: currentCompressedBase64 } }
+                                ]
+                            }
+                        ],
+                        max_tokens: 500
+                    })
+                });
+
+                const data = await response.json();
+                loading.classList.add('hidden');
+
+                if (data.error) throw new Error(data.error.message);
+
+                if (data.choices && data.choices.length > 0) {
+                    const text = data.choices[0].message.content;
+                    typeWriter(text);
+                    saveHistory(text);
+                } else {
+                    throw new Error("No content returned");
+                }
+
+            } catch (error) {
+                loading.classList.add('hidden');
+                resultEl.value = `Error: ${error.message}`;
+            }
+        }
+
+        function typeWriter(text) {
+            const el = document.getElementById('result');
+            let i = 0;
+            function type() {
+                if (i < text.length) {
+                    el.value += text.charAt(i);
+                    el.scrollTop = el.scrollHeight;
+                    i++;
+                    setTimeout(type, 5);
+                }
+            }
+            type();
+        }
+
+        function copyText() {
+            const el = document.getElementById('result');
+            if(!el.value) return;
+            el.select();
+            document.execCommand('copy');
+            
+            const btn = document.getElementById('copy-btn');
+            const span = btn.querySelector('span');
+            const originalText = span.innerText;
+            
+            span.innerText = "Copied!";
+            btn.classList.replace('bg-indigo-600', 'bg-green-500');
+            
+            setTimeout(() => {
+                span.innerText = originalText;
+                btn.classList.replace('bg-green-500', 'bg-indigo-600');
+            }, 2000);
+        }
+
+        function saveHistory(prompt) {
+            const history = JSON.parse(localStorage.getItem('picto_history') || '[]');
+            history.unshift({ prompt: prompt, date: new Date().toLocaleTimeString() });
+            if (history.length > 5) history.pop();
+            localStorage.setItem('picto_history', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const listEl = document.getElementById('history-list');
+            const history = JSON.parse(localStorage.getItem('picto_history') || '[]');
+            
+            listEl.innerHTML = history.map((item, index) => `
+                <div class="history-item bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-2 group cursor-pointer" onclick="restorePrompt('${index}')">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] text-gray-400 font-mono">${item.date}</span>
+                        <span class="text-[10px] text-indigo-400 opacity-0 group-hover:opacity-100 transition">CLICK TO RESTORE</span>
+                    </div>
+                    <p class="text-xs text-gray-600 line-clamp-2 font-mono">${item.prompt}</p>
+                </div>
+            `).join('');
+        }
+
+        function restorePrompt(index) {
+            const history = JSON.parse(localStorage.getItem('picto_history') || '[]');
+            if (history[index]) {
+                document.getElementById('result').value = history[index].prompt;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        function clearHistory() {
+            if(confirm('Clear history?')) {
+                localStorage.removeItem('picto_history');
+                renderHistory();
+            }
+        }
+    </script>
+</body>
+</html>

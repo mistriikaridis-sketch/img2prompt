@@ -1,54 +1,35 @@
-// ✅ 强制使用 Edge Runtime，绕过 Node.js 的 10秒超时限制
 export const config = {
-  runtime: 'edge', 
+  runtime: 'edge', // 继续使用 Edge，它比 Node.js 启动更快
 };
 
 export default async function handler(req) {
-  // Edge 模式下，req 是标准的 Web Request 对象
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
   }
 
   try {
-    // 1. 读取 Vercel 环境变量
-    // 注意：Edge 模式下 process.env 可能拿不到，要用 process.env 或者 import.meta.env，但 Vercel 自动注入通常支持 process.env
-    const apiKey = process.env.ALIYUN_API_KEY;
-    
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'Server Config Error: API Key is missing.' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
-    // 2. 解析请求体
     const { imageBase64, style } = await req.json();
+    const apiKey = process.env.ALIYUN_API_KEY;
 
-    if (!imageBase64) {
-      return new Response(JSON.stringify({ error: 'No image data provided.' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'Server Config Error: ALIYUN_API_KEY is missing.' }), { status: 500 });
     }
 
-    // 3. 构建 Prompt
-    let systemPrompt = "详细分析这张图片，生成一段高质量的英文 Prompt，用于 Midjourney 绘画。包含：主体描述、环境、光影、艺术风格、镜头语言。直接输出 Prompt 纯文本，不要任何中文解释。";
-    if (style === 'photography') systemPrompt += " 重点：相机型号、胶片质感、真实光影。";
-    if (style === 'anime') systemPrompt += " 重点：二次元风格、线条描边、赛璐璐上色。";
-    if (style === '3d') systemPrompt += " 重点：3D渲染引擎(UE5)、材质、体积光。";
+    // 提示词构建
+    let systemPrompt = "Detailed analysis of this image for Midjourney prompt. Include: subject, environment, lighting, atmosphere, camera angles. Direct output in English.";
+    if (style === 'photography') systemPrompt += " Focus on: camera gear, film stock (e.g. Kodak), realistic lighting.";
+    if (style === 'anime') systemPrompt += " Focus on: anime style, line weight, cel shading, Studio Ghibli vibes.";
+    if (style === '3d') systemPrompt += " Focus on: 3D render, Unreal Engine 5, octane render, subsurface scattering.";
 
-    // 4. 请求阿里云 (Qwen-VL)
-    const aliyunResponse = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+    // 🚀 关键修改：使用 qwen-vl-plus (速度更快，避免超时)
+    const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "qwen-vl-max",
+        model: "qwen-vl-plus", // 👈 改为 Plus 版
         messages: [
           {
             role: "user",
@@ -58,34 +39,23 @@ export default async function handler(req) {
             ]
           }
         ],
-        max_tokens: 500
+        max_tokens: 300
       })
     });
 
-    // 5. 检查阿里云响应
-    if (!aliyunResponse.ok) {
-      const errorText = await aliyunResponse.text();
-      return new Response(JSON.stringify({ error: `Aliyun Error: ${errorText}` }), {
-        status: aliyunResponse.status,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    // 检查阿里云是否报错
+    if (!response.ok) {
+      const errorText = await response.text();
+      return new Response(JSON.stringify({ error: `Aliyun API Error: ${errorText}` }), { status: response.status });
     }
 
-    const data = await aliyunResponse.json();
-
-    // 6. 成功返回
+    const data = await response.json();
     return new Response(JSON.stringify(data), {
       status: 200,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store' 
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: `Internal Error: ${error.message}` }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return new Response(JSON.stringify({ error: `Internal Server Error: ${error.message}` }), { status: 500 });
   }
 }

@@ -1,28 +1,33 @@
-export const config = {
-  runtime: 'edge',
-};
+// 注意：删掉了 export const config = { runtime: 'edge' };
+// 这会强制 Vercel 使用默认的 Node.js 环境，这是最不容易出错的。
 
-export default async function handler(req) {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Content-Type': 'application/json'
-  };
+export default async function handler(req, res) {
+  // 1. 设置跨域，允许你的前端访问
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Content-Type', 'application/json');
 
+  // 2. 处理预检请求 (OPTIONS)
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  // 3. 只允许 POST
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405, headers });
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    const body = await req.json();
-    const { imageBase64 } = body;
+    const { imageBase64 } = req.body;
 
     if (!imageBase64) {
-      return new Response(JSON.stringify({ error: 'No image data received' }), { status: 400, headers });
+      return res.status(400).json({ error: 'No image data' });
     }
 
-    // 你的 Key
+    // Key 直接填在这里测试，通了再改
     const apiKey = 'sk-d00322e83fdb4df391f73e593dc146a7';
 
+    // 4. 呼叫阿里云
     const aliyunResp = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -46,13 +51,13 @@ export default async function handler(req) {
 
     if (!aliyunResp.ok) {
       const errText = await aliyunResp.text();
-      return new Response(JSON.stringify({ error: `Aliyun API Error (${aliyunResp.status}): ${errText}` }), { status: 500, headers });
+      return res.status(500).json({ error: `Aliyun Error: ${errText}` });
     }
 
     const data = await aliyunResp.json();
-    return new Response(JSON.stringify(data), { status: 200, headers });
+    return res.status(200).json(data);
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: `Backend Crash: ${error.message}` }), { status: 500, headers });
+    return res.status(500).json({ error: `Crash: ${error.message}` });
   }
 }

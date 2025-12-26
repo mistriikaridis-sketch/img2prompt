@@ -20,7 +20,7 @@ export default async function handler(req) {
       return new Response(JSON.stringify({ error: 'No image data received' }), { status: 400, headers });
     }
 
-    // 你的 Key
+    // 你的 Key (测试用)
     const apiKey = 'sk-d00322e83fdb4df391f73e593dc146a7';
 
     const aliyunResp = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {

@@ -1,0 +1,44 @@
+async function runQwen() {
+            const loading = document.getElementById('loading');
+            const resultEl = document.getElementById('result');
+            
+            resultEl.value = '';
+            loading.classList.remove('hidden');
+
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        imageBase64: currentCompressedBase64,
+                        style: currentStyle 
+                    })
+                });
+
+                // 🔍 关键修改：先判断响应是不是 OK
+                if (!response.ok) {
+                    // 如果报错，先尝试读文本，看看服务器说了啥
+                    const errorText = await response.text(); 
+                    throw new Error(`Server Error (${response.status}): ${errorText.substring(0, 100)}...`);
+                }
+
+                // 只有确定是 OK 的，才去解 JSON
+                const data = await response.json();
+                loading.classList.add('hidden');
+
+                if (data.error) throw new Error(data.error);
+
+                if (data.choices && data.choices.length > 0) {
+                    const text = data.choices[0].message.content;
+                    typeWriter(text);
+                    saveHistory(text);
+                } else {
+                    throw new Error("API returned empty content.");
+                }
+
+            } catch (error) {
+                loading.classList.add('hidden');
+                // 把真实的错误信息显示在框里
+                resultEl.value = `❌ Connection Error:\n${error.message}\n\n👉 Tip: Check your Vercel Environment Variables (ALIYUN_API_KEY).`;
+            }
+        }

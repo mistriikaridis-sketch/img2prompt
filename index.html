@@ -155,7 +155,7 @@
             loading.classList.remove('hidden');
 
             try {
-                const response = await fetch('/api/analyze', {
+                const response = await fetch('/api/ask', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -294,3 +294,4 @@
     </script>
 </body>
 </html>
+

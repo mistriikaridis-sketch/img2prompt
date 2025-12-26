@@ -1,11 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JH6GXZ293T"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-JH6GXZ293T');
+    </script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Picture to Prompt | Zen</title>
+    
+    <title>Pic to Prompt | Zen - Free AI Image to Text Converter</title>
+    <meta name="description" content="Instantly convert any image to a descriptive prompt. Best free AI tool to extract text prompts from photos for Midjourney V6, Stable Diffusion, and DALL-E. No sign-up required.">
+    <meta name="keywords" content="image to prompt, pic to prompt, picture to text, midjourney prompt generator, ai art reverse engineering, stable diffusion prompt helper, img2prompt">
+    
+    <meta property="og:title" content="Pic to Prompt | Turn Photos into Magic Prompts">
+    <meta property="og:description" content="Upload an image, get a professional AI art prompt instantly. Free tool for creators.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.pic2prompt.com">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    
     <style>
         :root {
             --ink-black: #1a1a1a;
@@ -58,6 +77,10 @@
         }
         
         .history-item:hover { border-color: #999; }
+        
+        /* FAQ折叠样式 */
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center py-24 px-6">
@@ -115,6 +138,51 @@
         <div id="history-list" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
     </div>
 
+    <div class="w-full max-w-4xl mt-20 mb-20 px-6">
+        <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-8 text-center">User Guide & FAQ</h2>
+        
+        <div class="space-y-4">
+            <details class="group bg-white border border-gray-100 rounded-lg open:border-gray-300 transition-all duration-300">
+                <summary class="flex justify-between items-center cursor-pointer p-6 list-none">
+                    <h3 class="text-sm font-serif font-medium text-gray-800">1. How to convert an image to prompt?</h3>
+                    <span class="text-gray-400 group-open:rotate-180 transition-transform duration-300">▼</span>
+                </summary>
+                <div class="px-6 pb-6 text-sm text-gray-500 leading-relaxed font-light">
+                    Simply click the <strong>"+"</strong> area or drag and drop your reference image (JPG, PNG, WEBP). Our AI vision model will instantly analyze the composition, lighting, style, and subject matter.
+                </div>
+            </details>
+
+            <details class="group bg-white border border-gray-100 rounded-lg open:border-gray-300 transition-all duration-300">
+                <summary class="flex justify-between items-center cursor-pointer p-6 list-none">
+                    <h3 class="text-sm font-serif font-medium text-gray-800">2. Best way to use the result in Midjourney?</h3>
+                    <span class="text-gray-400 group-open:rotate-180 transition-transform duration-300">▼</span>
+                </summary>
+                <div class="px-6 pb-6 text-sm text-gray-500 leading-relaxed font-light">
+                    <ol class="list-decimal pl-4 space-y-2">
+                        <li>Click <strong>"COPY TEXT"</strong> to grab the generated prompt.</li>
+                        <li>Go to Discord (Midjourney) or your Stable Diffusion interface.</li>
+                        <li>Type <code>/imagine</code> and paste the prompt.</li>
+                        <li><strong>Pro Tip:</strong> You can add parameters like <code>--ar 16:9</code> or <code>--v 6.0</code> at the end.</li>
+                    </ol>
+                </div>
+            </details>
+
+            <details class="group bg-white border border-gray-100 rounded-lg open:border-gray-300 transition-all duration-300">
+                <summary class="flex justify-between items-center cursor-pointer p-6 list-none">
+                    <h3 class="text-sm font-serif font-medium text-gray-800">3. Is this tool free to use?</h3>
+                    <span class="text-gray-400 group-open:rotate-180 transition-transform duration-300">▼</span>
+                </summary>
+                <div class="px-6 pb-6 text-sm text-gray-500 leading-relaxed font-light">
+                    Yes, <strong>Pic to Prompt | Zen</strong> is a free tool designed for creators. We use advanced AI to reverse-engineer images into text descriptions, helping you overcome creative block.
+                </div>
+            </details>
+        </div>
+        
+        <p class="mt-12 text-[10px] text-gray-300 text-center leading-6">
+            Optimized for: Midjourney V6 • Stable Diffusion XL • DALL-E 3 • Image Analysis • Reverse Prompt Engineering • AI Art Helper
+        </p>
+    </div>
+
     <script>
         let currentCompressedBase64 = null;
 
@@ -155,6 +223,7 @@
             loading.classList.remove('hidden');
 
             try {
+                // 🟢 使用 Node.js 模式的 api/ask
                 const response = await fetch('/api/ask', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -206,7 +275,7 @@
                         const ctx = canvas.getContext('2d');
                         let width = img.width;
                         let height = img.height;
-                        const maxSize = 800; // 保持 800px 以确保速度
+                        const maxSize = 800; 
                         if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } 
                         else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
                         canvas.width = width;
@@ -277,14 +346,6 @@
             }
         }
 
-        function restorePrompt(index) {
-            const history = JSON.parse(localStorage.getItem('picto_history') || '[]');
-            if (history[index]) {
-                document.getElementById('result').value = history[index].prompt;
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        }
-
         function clearHistory() {
             if(confirm('Delete all history?')) {
                 localStorage.removeItem('picto_history');
@@ -294,4 +355,3 @@
     </script>
 </body>
 </html>
-
